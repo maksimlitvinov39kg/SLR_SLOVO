@@ -51,7 +51,7 @@ SLR_SLOVO/
 
 | Метрика | Значение |
 |---------|----------|
-| Mena Accuracy | 63.16% |
+| Mean Accuracy | 63.16% |
 | F1-Score | 62.56% |
 | Precision | 66.47% |
 | Recall | 62.04% |
