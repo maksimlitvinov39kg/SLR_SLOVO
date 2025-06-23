@@ -1,0 +1,11 @@
+streamlit>=1.28.0
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+pandas>=2.0.0
+numpy>=1.24.0
+torch>=2.0.0
+torchvision>=0.15.0
+gdown>=4.7.0
+Pillow>=9.5.0
+pyarrow>=12.0.0
+fastparquet>=0.8.0

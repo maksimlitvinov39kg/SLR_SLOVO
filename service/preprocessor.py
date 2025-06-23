@@ -1,3 +1,36 @@
+import torch
+from torch import nn
+import numpy as np
+
+USE_TYPES = ['left_hand', 'pose', 'right_hand']
+START_IDX = 468
+LIPS_IDXS0 = np.array([
+    61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 146, 91, 181, 84, 17,
+    314, 405, 321, 375, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 95, 88,
+    178, 87, 14, 317, 402, 318, 324, 308,
+])
+LEFT_HAND_IDXS0 = np.arange(468, 489)
+RIGHT_HAND_IDXS0 = np.arange(522, 543)
+LEFT_POSE_IDXS0 = np.array([502, 504, 506, 508, 510])
+RIGHT_POSE_IDXS0 = np.array([503, 505, 507, 509, 511])
+
+
+LANDMARK_IDXS_BOTH_HANDS = np.concatenate((LIPS_IDXS0, LEFT_HAND_IDXS0, RIGHT_HAND_IDXS0, LEFT_POSE_IDXS0, RIGHT_POSE_IDXS0))
+
+LIPS_IDXS = np.argwhere(np.isin(LANDMARK_IDXS_BOTH_HANDS, LIPS_IDXS0)).squeeze()
+LEFT_HAND_IDXS = np.argwhere(np.isin(LANDMARK_IDXS_BOTH_HANDS, LEFT_HAND_IDXS0)).squeeze()
+RIGHT_HAND_IDXS = np.argwhere(np.isin(LANDMARK_IDXS_BOTH_HANDS, RIGHT_HAND_IDXS0)).squeeze()
+POSE_IDXS = np.argwhere(np.isin(LANDMARK_IDXS_BOTH_HANDS, LEFT_POSE_IDXS0)).squeeze()
+
+LIPS_START = 0
+LEFT_HAND_START = LIPS_IDXS.size
+RIGHT_HAND_START = LEFT_HAND_START + LEFT_HAND_IDXS.size
+POSE_START = RIGHT_HAND_START + RIGHT_HAND_IDXS.size
+N_COLS = LANDMARK_IDXS_BOTH_HANDS.size
+
+INPUT_SIZE = 128
+N_DIMS = 3
+
 class PreprocessLayerBothHands(nn.Module):
     def __init__(self):
         super(PreprocessLayerBothHands, self).__init__()
@@ -116,5 +149,3 @@ class PreprocessLayerBothHands(nn.Module):
             data = torch.where(torch.isnan(data), torch.tensor(0.0, dtype=torch.float32), data)
             
             return data, non_empty_frames_idxs
-
-preprocess_layer = PreprocessLayerBothHands()
