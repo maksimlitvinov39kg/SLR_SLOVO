@@ -1,3 +1,5 @@
+## Пример работы интерфейса доступен по [ссылке](https://drive.google.com/file/d/1FxszfTyO_hK2fIAjdE_hhph1OeuEF_Qg/)
+
 ### Описание файлов проекта
 
 **Основные файлы:**

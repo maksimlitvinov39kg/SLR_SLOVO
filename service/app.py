@@ -412,7 +412,7 @@ def main():
                 tmp_path = tmp_file.name
             
             try:
-                st.video(uploaded_file)
+                st.video(uploaded_file, width=512)
                 
                 if st.button("🔍 Анализировать видео"):
                     with st.spinner("Извлекаем кейпоинты из видео..."):
@@ -469,6 +469,15 @@ def main():
                     st.error("❌ Не удалось открыть веб-камеру")
                     return
                 
+                for countdown in range(3, 0, -1):
+                    ret, frame = cap.read()
+                    if ret:
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        video_placeholder.image(frame_rgb, channels="RGB", width=512)
+                    
+                    status_placeholder.warning(f"⏰ Запись начнется через {countdown} секунд... Приготовьтесь!")
+                    time.sleep(1)
+                
                 frames = []
                 fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
                 duration = 3
@@ -485,7 +494,7 @@ def main():
                     frames.append(frame.copy())
                     
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    video_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
+                    video_placeholder.image(frame_rgb, channels="RGB", width=512)
                     
                     frame_count += 1
                     
