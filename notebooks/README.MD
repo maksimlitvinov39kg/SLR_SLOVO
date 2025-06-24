@@ -49,6 +49,8 @@
 - Cross-modal attention между руками и между лицом/позой
 - Временное позиционное кодирование
 
+![](../assets/embed.png)
+
 ### 2. Transformer Backbone (HierarchicalTransformer)
 - **Локальные блоки**: Обработка коротких временных зависимостей
 - **Temporal Convolution**: Свертки для захвата паттернов движения
@@ -64,6 +66,7 @@
 - Auxiliary classifiers для каждого слоя
 - Опциональная оценка уверенности (confidence estimation)
 
+![](../assets/HiT.png)
 ## Обучение
 
 ### Функция потерь

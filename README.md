@@ -43,6 +43,8 @@ SLR_SLOVO/
 
 ## Архитектура модели
 
+![](assets/a_final.png)
+
 ### Более подробное описание архитектуры представлено в [РИДМИ](notebooks/README.MD) папки notebooks
 
 [](assets/a_final.png)
