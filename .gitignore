@@ -198,5 +198,7 @@ cython_debug/
 *.pt
 
 #video metadata
-
 *.mp4
+
+#fixing metadata 
+TODO.TXT
