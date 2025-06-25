@@ -111,7 +111,7 @@ podman run -it --rm \
     sign-language-app
 ```
 
-### ИЛИ тоже самое через,но через docker
+### ИЛИ тоже самое,но через docker
 ```bash
 docker build -t sign-language-app .
 ```
