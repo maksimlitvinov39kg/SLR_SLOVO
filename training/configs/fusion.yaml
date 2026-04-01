@@ -1,0 +1,56 @@
+# Phase 3: Dual-stream fusion (RGB + Keypoints)
+# Target: >82% accuracy (beat SOTA)
+
+# Data
+data_root: /path/to/slovo  # CHANGE THIS
+mode: both
+num_frames_rgb: 32
+num_frames_kp: 128
+rgb_size: 224
+batch_size: 6
+num_workers: 8
+
+# RGB Branch
+rgb_backbone: mvit_v2_s
+rgb_pretrained: true      # will load from Phase 1 if available
+rgb_freeze_stages: 0
+
+# Keypoint Branch
+kp_d_model: 256
+kp_num_heads: 8
+kp_num_layers: 6
+kp_dropout: 0.15
+kp_drop_path: 0.1
+
+# Fusion
+fusion_type: gated        # gated > concat > cross_attention in our tests
+fused_dim: 512
+
+# Training
+epochs: 60
+lr: 5e-5                  # lower LR for fusion fine-tuning
+rgb_lr_mult: 0.1          # RGB backbone gets lr * 0.1 = 5e-6
+weight_decay: 0.05
+max_grad_norm: 1.0
+gradient_accumulation: 6   # effective batch = 6 * 6 = 36
+mixup_alpha: 0.3
+label_smoothing: 0.05
+focal_alpha: 1.0
+focal_gamma: 2.0
+classifier_dropout: 0.3
+
+# Scheduler
+scheduler: cosine_warm_restarts
+cosine_T0: 10
+cosine_T_mult: 2
+
+# AMP
+bf16: true
+
+# Logging
+log_every: 25
+save_every: 5
+patience: 15
+
+# Output
+output_dir: checkpoints/fusion

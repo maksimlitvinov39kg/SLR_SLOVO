@@ -1,0 +1,42 @@
+# Phase 1: RGB-only baseline with MViTv2-S
+# Target: ~78-80% accuracy (reproduce Krivov et al. baseline)
+
+# Data
+data_root: /path/to/slovo  # CHANGE THIS
+mode: rgb
+num_frames_rgb: 32
+rgb_size: 224
+batch_size: 8
+num_workers: 8
+
+# Model
+rgb_backbone: mvit_v2_s
+rgb_pretrained: true
+rgb_freeze_stages: 0  # fine-tune everything
+
+# Training
+epochs: 50
+lr: 1e-4
+weight_decay: 0.05
+max_grad_norm: 1.0
+gradient_accumulation: 4   # effective batch = 8 * 4 = 32
+mixup_alpha: 0.4
+label_smoothing: 0.05
+focal_alpha: 1.0
+focal_gamma: 2.0
+
+# Scheduler
+scheduler: cosine_warm_restarts
+cosine_T0: 10
+cosine_T_mult: 2
+
+# AMP
+bf16: true   # H100 supports bf16 natively
+
+# Logging
+log_every: 50
+save_every: 5
+patience: 15
+
+# Output
+output_dir: checkpoints/rgb_only

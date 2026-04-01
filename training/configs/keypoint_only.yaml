@@ -1,0 +1,43 @@
+# Phase 2: Keypoint-only (improved architecture)
+# Target: ~60-65% accuracy
+
+# Data
+data_root: /path/to/slovo  # CHANGE THIS
+mode: keypoints
+num_frames_kp: 128
+batch_size: 64
+num_workers: 8
+
+# Model
+kp_d_model: 256
+kp_num_heads: 8
+kp_num_layers: 6
+kp_dropout: 0.2
+kp_drop_path: 0.15
+
+# Training
+epochs: 100
+lr: 3e-4
+weight_decay: 0.05
+max_grad_norm: 1.0
+gradient_accumulation: 1   # effective batch = 64
+mixup_alpha: 0.4
+label_smoothing: 0.05
+focal_alpha: 1.0
+focal_gamma: 2.0
+
+# Scheduler
+scheduler: cosine_warm_restarts
+cosine_T0: 15
+cosine_T_mult: 2
+
+# AMP
+bf16: true
+
+# Logging
+log_every: 25
+save_every: 10
+patience: 20
+
+# Output
+output_dir: checkpoints/kp_only
