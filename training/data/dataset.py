@@ -142,22 +142,43 @@ class SLOVODataset(Dataset):
 
     # ---- Keypoint loading ----
     def _load_keypoints(self, attachment_id: str) -> Tuple[torch.Tensor, torch.Tensor]:
-        kp_path = self.kp_dir / f"{attachment_id}.npy"
+        from .extract_keypoints import N_SLR_LANDMARKS, SLR_LEFT_HAND_RANGE, SLR_RIGHT_HAND_RANGE
 
-        if kp_path.exists():
-            kp = np.load(str(kp_path))  # (N_frames, 87, 3)
+        N_KP = N_SLR_LANDMARKS  # 78
+        N_DIMS = 2              # RTMW gives (x, y), not (x, y, z)
+
+        # Try .npz (RTMW format) first, then .npy (legacy MediaPipe)
+        npz_path = self.kp_dir / f"{attachment_id}.npz"
+        npy_path = self.kp_dir / f"{attachment_id}.npy"
+
+        if npz_path.exists():
+            data = np.load(str(npz_path))
+            kp = data["keypoints"]      # (N_frames, 78, 2)
+            scores = data["scores"]     # (N_frames, 78)
+        elif npy_path.exists():
+            # Legacy MediaPipe format: (N_frames, 87, 3) -> take x,y only
+            kp_old = np.load(str(npy_path))  # (N, 87, 3)
+            kp = kp_old[:, :, :2]            # (N, 87, 2) — drop z
+            # Pad/trim to 78 landmarks
+            if kp.shape[1] > N_KP:
+                kp = kp[:, :N_KP, :]
+            elif kp.shape[1] < N_KP:
+                pad = np.zeros((kp.shape[0], N_KP - kp.shape[1], 2), dtype=np.float32)
+                kp = np.concatenate([kp, pad], axis=1)
+            scores = (np.abs(kp).sum(axis=-1) > 0).astype(np.float32)
         else:
-            # Fallback: extract on-the-fly (slow but works)
-            from .extract_keypoints import extract_keypoints_from_video
-            video_path = self.video_dir.parent / self.split / f"{attachment_id}.mp4"
-            kp = extract_keypoints_from_video(str(video_path), max_frames=self.num_frames_kp)
+            # No pre-extracted keypoints — return zeros
+            kp = np.zeros((1, N_KP, N_DIMS), dtype=np.float32)
+            scores = np.zeros((1, N_KP), dtype=np.float32)
 
-        # Filter empty frames (where both hands are zero)
-        hand_sum = np.abs(kp[:, 40:82, :]).sum(axis=(1, 2))  # hands region
-        non_empty_mask = hand_sum > 0
+        # Filter empty frames using hand confidence scores
+        lh_start, lh_end = SLR_LEFT_HAND_RANGE
+        rh_start, rh_end = SLR_RIGHT_HAND_RANGE
+        hand_score = scores[:, lh_start:rh_end].sum(axis=1)  # sum of hand scores
+        non_empty_mask = hand_score > 0
 
         if non_empty_mask.sum() == 0:
-            non_empty_mask[:] = True  # fallback: keep all
+            non_empty_mask[:] = True
 
         kp_filtered = kp[non_empty_mask]
         n_valid = len(kp_filtered)
@@ -165,7 +186,7 @@ class SLOVODataset(Dataset):
         # Pad/resample to fixed length
         target_len = self.num_frames_kp
         if n_valid < target_len:
-            pad = np.zeros((target_len - n_valid, 87, 3), dtype=np.float32)
+            pad = np.zeros((target_len - n_valid, N_KP, N_DIMS), dtype=np.float32)
             kp_out = np.concatenate([kp_filtered, pad], axis=0)
             non_empty = np.concatenate([
                 np.arange(n_valid, dtype=np.float32),
@@ -179,7 +200,7 @@ class SLOVODataset(Dataset):
             kp_out = kp_filtered
             non_empty = np.arange(target_len, dtype=np.float32)
 
-        kp_tensor = torch.from_numpy(kp_out).float()     # (128, 87, 3)
+        kp_tensor = torch.from_numpy(kp_out).float()     # (128, 78, 2)
         ne_tensor = torch.from_numpy(non_empty).float()   # (128,)
 
         if self.kp_augment:
@@ -229,10 +250,13 @@ class SLOVODataset(Dataset):
 
     def _mirror_hands(self, kp):
         """Swap left/right hand landmarks and flip x-coordinate."""
+        from .extract_keypoints import SLR_LEFT_HAND_RANGE, SLR_RIGHT_HAND_RANGE
+        lh_s, lh_e = SLR_LEFT_HAND_RANGE   # (30, 51)
+        rh_s, rh_e = SLR_RIGHT_HAND_RANGE  # (51, 72)
+
         mirrored = kp.clone()
-        # Swap left hand (40:61) with right hand (61:82)
-        mirrored[:, 40:61, :] = kp[:, 61:82, :]
-        mirrored[:, 61:82, :] = kp[:, 40:61, :]
+        mirrored[:, lh_s:lh_e, :] = kp[:, rh_s:rh_e, :]
+        mirrored[:, rh_s:rh_e, :] = kp[:, lh_s:lh_e, :]
         # Flip x-coordinate (mirror horizontally)
         mask = (mirrored != 0).float()
         mirrored[..., 0] = (1.0 - mirrored[..., 0]) * mask[..., 0]

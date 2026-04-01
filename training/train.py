@@ -13,7 +13,7 @@ Supports:
     - Cosine annealing with warm restarts
     - AMP (mixed precision) for H100
     - Gradient accumulation
-    - Wandb logging (optional)
+    - TensorBoard logging
 """
 
 import os
@@ -30,6 +30,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, OneCycleLR
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
 from data.dataset import build_dataloaders
@@ -40,8 +41,6 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint")
-    parser.add_argument("--wandb", action="store_true", help="Enable wandb logging")
-    parser.add_argument("--wandb_project", type=str, default="slovo-sota")
     return parser.parse_args()
 
 
@@ -258,11 +257,6 @@ def main():
     args = parse_args()
     cfg = load_config(args.config)
 
-    # Wandb
-    if args.wandb:
-        import wandb
-        wandb.init(project=args.wandb_project, config=cfg)
-
     print(f"Config: {cfg}")
     print(f"Mode: {cfg.get('mode', 'both')}")
 
@@ -324,6 +318,9 @@ def main():
     output_dir = Path(cfg.get("output_dir", "checkpoints")) / datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # TensorBoard
+    writer = SummaryWriter(log_dir=str(output_dir / "tb_logs"))
+
     # Save config
     with open(output_dir / "config.yaml", "w") as f:
         yaml.dump(cfg, f)
@@ -351,18 +348,11 @@ def main():
               f"val_loss={val_loss:.4f} val_acc={val_acc:.2f}% val_top5={val_top5:.2f}% | "
               f"time={elapsed:.0f}s")
 
-        # Wandb logging
-        if args.wandb:
-            import wandb
-            wandb.log({
-                "epoch": epoch + 1,
-                "train_loss": train_loss,
-                "train_acc": train_acc,
-                "val_loss": val_loss,
-                "val_acc": val_acc,
-                "val_top5": val_top5,
-                "lr": optimizer.param_groups[0]["lr"],
-            })
+        # TensorBoard logging
+        writer.add_scalars("loss", {"train": train_loss, "val": val_loss}, epoch + 1)
+        writer.add_scalars("accuracy", {"train": train_acc, "val": val_acc}, epoch + 1)
+        writer.add_scalar("accuracy/val_top5", val_top5, epoch + 1)
+        writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch + 1)
 
         # Save best
         is_best = val_acc > best_acc
@@ -396,6 +386,7 @@ def main():
             print(f"\nEarly stopping after {patience} epochs without improvement.")
             break
 
+    writer.close()
     print(f"\nTraining complete. Best val accuracy: {best_acc:.2f}%")
     print(f"Checkpoints saved to: {output_dir}")
 

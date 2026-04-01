@@ -160,16 +160,16 @@ class TemporalConvBlock(nn.Module):
 
 class BodyPartEmbedding(nn.Module):
     """Embed a single body part's keypoints -> temporal sequence."""
-    def __init__(self, n_landmarks, d_model):
+    def __init__(self, n_landmarks, d_model, n_dims=2):
         super().__init__()
-        self.proj = nn.Linear(n_landmarks * 3, d_model)  # use x,y,z
+        self.proj = nn.Linear(n_landmarks * n_dims, d_model)
         self.norm = RMSNorm(d_model)
 
     def forward(self, x):
-        # x: (B, T, N_landmarks, 3)
+        # x: (B, T, N_landmarks, 2) or (B, T, N_landmarks, 3)
         B, T, N, D = x.shape
-        x_flat = x.reshape(B, T, N * D)  # (B, T, N*3)
-        return self.norm(self.proj(x_flat))  # (B, T, d_model)
+        x_flat = x.reshape(B, T, N * D)
+        return self.norm(self.proj(x_flat))
 
 
 class CrossModalAttention(nn.Module):
@@ -191,8 +191,14 @@ class KeypointBranch(nn.Module):
     """
     Improved keypoint transformer.
 
-    Input: keypoints (B, T, 87, 3), non_empty_frame_idxs (B, T)
+    Input: keypoints (B, T, 78, 2), non_empty_frame_idxs (B, T)
     Output: features (B, feature_dim)
+
+    RTMW COCO-WholeBody SLR subset (78 keypoints):
+        [0:30]   Face — eyebrows (10) + lips (20)
+        [30:51]  Left hand (21)
+        [51:72]  Right hand (21)
+        [72:78]  Upper body pose (6) — shoulders, elbows, wrists
     """
 
     def __init__(
@@ -202,16 +208,18 @@ class KeypointBranch(nn.Module):
         num_layers: int = 6,
         dropout: float = 0.2,
         drop_path: float = 0.15,
+        n_dims: int = 2,  # RTMW=2 (x,y), MediaPipe legacy=3 (x,y,z)
     ):
         super().__init__()
         self.d_model = d_model
         self.feature_dim = d_model
+        self.n_dims = n_dims
 
-        # Body part embeddings (40 lips, 21 left hand, 21 right hand, 5 pose)
-        self.lips_embed = BodyPartEmbedding(40, d_model)
-        self.left_hand_embed = BodyPartEmbedding(21, d_model)
-        self.right_hand_embed = BodyPartEmbedding(21, d_model)
-        self.pose_embed = BodyPartEmbedding(5, d_model)
+        # Body part embeddings: face(30), left hand(21), right hand(21), pose(6)
+        self.face_embed = BodyPartEmbedding(30, d_model, n_dims)
+        self.left_hand_embed = BodyPartEmbedding(21, d_model, n_dims)
+        self.right_hand_embed = BodyPartEmbedding(21, d_model, n_dims)
+        self.pose_embed = BodyPartEmbedding(6, d_model, n_dims)
 
         # Cross-modal attention between hands
         self.hand_cross_attn = CrossModalAttention(d_model, num_heads=4, dropout=dropout)
@@ -269,7 +277,7 @@ class KeypointBranch(nn.Module):
     def forward(self, keypoints, non_empty_frame_idxs):
         """
         Args:
-            keypoints: (B, T, 87, 3)
+            keypoints: (B, T, 78, 2)
             non_empty_frame_idxs: (B, T)
         Returns:
             features: (B, d_model)
@@ -277,14 +285,14 @@ class KeypointBranch(nn.Module):
         B, T = keypoints.shape[:2]
         attention_mask = (non_empty_frame_idxs != -1).float()  # (B, T)
 
-        # Split body parts
-        lips = keypoints[:, :, :40, :]
-        left_hand = keypoints[:, :, 40:61, :]
-        right_hand = keypoints[:, :, 61:82, :]
-        pose = keypoints[:, :, 82:87, :]
+        # Split body parts (RTMW SLR subset layout)
+        face = keypoints[:, :, 0:30, :]       # eyebrows + lips
+        left_hand = keypoints[:, :, 30:51, :]
+        right_hand = keypoints[:, :, 51:72, :]
+        pose = keypoints[:, :, 72:78, :]
 
         # Embed each part
-        lips_emb = self.lips_embed(lips)
+        face_emb = self.face_embed(face)
         lh_emb = self.left_hand_embed(left_hand)
         rh_emb = self.right_hand_embed(right_hand)
         pose_emb = self.pose_embed(pose)
@@ -292,10 +300,10 @@ class KeypointBranch(nn.Module):
         # Cross-modal attention
         lh_enhanced = self.hand_cross_attn(lh_emb, rh_emb)
         rh_enhanced = self.hand_cross_attn(rh_emb, lh_emb)
-        lips_enhanced = self.face_pose_cross_attn(lips_emb, pose_emb)
+        face_enhanced = self.face_pose_cross_attn(face_emb, pose_emb)
 
         # Fuse all streams
-        concat = torch.cat([lips_enhanced, lh_enhanced, rh_enhanced, pose_emb], dim=-1)
+        concat = torch.cat([face_enhanced, lh_enhanced, rh_enhanced, pose_emb], dim=-1)
         x = self.fusion(concat)  # (B, T, d_model)
 
         # Add temporal position

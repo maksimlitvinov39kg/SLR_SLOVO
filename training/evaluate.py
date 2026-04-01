@@ -75,14 +75,13 @@ def tta_forward(model, batch, cfg):
     with autocast(dtype=torch.bfloat16 if cfg.get("bf16", False) else torch.float16):
         logits_list.append(model(batch))
 
-    # 2. Mirror keypoints
+    # 2. Mirror keypoints (RTMW SLR layout: left hand 30:51, right hand 51:72)
     if "keypoints" in batch:
         mirrored = batch.copy()
         kp = batch["keypoints"].clone()
-        # Swap left (40:61) and right (61:82) hands
         kp_mirror = kp.clone()
-        kp_mirror[:, :, 40:61, :] = kp[:, :, 61:82, :]
-        kp_mirror[:, :, 61:82, :] = kp[:, :, 40:61, :]
+        kp_mirror[:, :, 30:51, :] = kp[:, :, 51:72, :]
+        kp_mirror[:, :, 51:72, :] = kp[:, :, 30:51, :]
         # Flip x coordinate
         mask = (kp_mirror != 0).float()
         kp_mirror[..., 0] = (1.0 - kp_mirror[..., 0]) * mask[..., 0]
