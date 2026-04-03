@@ -2,7 +2,7 @@
 # Target: ~60-65% accuracy
 
 # Data
-data_root: ../dataset  # CHANGE THIS
+data_root: ../dataset
 mode: keypoints
 num_frames_kp: 128
 batch_size: 64
@@ -17,7 +17,7 @@ kp_drop_path: 0.15
 
 # Training
 epochs: 100
-lr: 3e-4
+lr: 0.0003
 weight_decay: 0.05
 max_grad_norm: 1.0
 gradient_accumulation: 1   # effective batch = 64

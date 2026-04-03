@@ -2,9 +2,9 @@
 # Target: >82% accuracy (beat SOTA)
 
 # Data
-data_root: ../dataset  # CHANGE THIS
+data_root: ../dataset
 mode: both
-num_frames_rgb: 32
+num_frames_rgb: 16    # MViTv2-S pretrained expects exactly 16 frames
 num_frames_kp: 128
 rgb_size: 224
 batch_size: 6
@@ -12,32 +12,31 @@ num_workers: 8
 
 # RGB Branch
 rgb_backbone: mvit_v2_s
-rgb_pretrained: true      # will load from Phase 1 if available
-rgb_freeze_stages: 0
+rgb_pretrained: true
+rgb_freeze_stages: 2    # freeze early stages, fine-tune later ones
+rgb_lr_mult: 0.1        # lower LR for pretrained weights
 
 # Keypoint Branch
 kp_d_model: 256
 kp_num_heads: 8
 kp_num_layers: 6
-kp_dropout: 0.15
-kp_drop_path: 0.1
+kp_dropout: 0.2
+kp_drop_path: 0.15
 
 # Fusion
-fusion_type: gated        # gated > concat > cross_attention in our tests
+fusion_type: gated
 fused_dim: 512
 
 # Training
 epochs: 60
-lr: 5e-5                  # lower LR for fusion fine-tuning
-rgb_lr_mult: 0.1          # RGB backbone gets lr * 0.1 = 5e-6
+lr: 0.0003
 weight_decay: 0.05
 max_grad_norm: 1.0
 gradient_accumulation: 6   # effective batch = 6 * 6 = 36
-mixup_alpha: 0.3
+mixup_alpha: 0.4
 label_smoothing: 0.05
 focal_alpha: 1.0
 focal_gamma: 2.0
-classifier_dropout: 0.3
 
 # Scheduler
 scheduler: cosine_warm_restarts
@@ -48,9 +47,12 @@ cosine_T_mult: 2
 bf16: true
 
 # Logging
-log_every: 25
+log_every: 50
 save_every: 5
-patience: 15
+patience: 20
+
+# Classifier
+classifier_dropout: 0.3
 
 # Output
 output_dir: checkpoints/fusion

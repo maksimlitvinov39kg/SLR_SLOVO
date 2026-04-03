@@ -2,9 +2,9 @@
 # Target: ~78-80% accuracy (reproduce Krivov et al. baseline)
 
 # Data
-data_root: ../dataset  # CHANGE THIS
+data_root: ../dataset
 mode: rgb
-num_frames_rgb: 32
+num_frames_rgb: 16    # MViTv2-S pretrained expects exactly 16 frames
 rgb_size: 224
 batch_size: 8
 num_workers: 8
@@ -16,7 +16,7 @@ rgb_freeze_stages: 0  # fine-tune everything
 
 # Training
 epochs: 50
-lr: 1e-4
+lr: 0.0001
 weight_decay: 0.05
 max_grad_norm: 1.0
 gradient_accumulation: 4   # effective batch = 8 * 4 = 32
