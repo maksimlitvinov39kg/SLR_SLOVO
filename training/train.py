@@ -28,7 +28,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, OneCycleLR
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -122,7 +122,7 @@ def train_one_epoch(model, loader, criterion, optimizer, scheduler, scaler, cfg,
             lam = 1.0
 
         # Forward
-        with autocast(dtype=torch.bfloat16 if cfg.get("bf16", False) else torch.float16):
+        with autocast('cuda', dtype=torch.bfloat16 if cfg.get("bf16", False) else torch.float16):
             logits = model(batch)
 
             if targets_b is not None:
@@ -175,7 +175,7 @@ def evaluate(model, loader, criterion, cfg):
         batch = {k: v.cuda(non_blocking=True) if torch.is_tensor(v) else v
                  for k, v in batch.items()}
 
-        with autocast(dtype=torch.bfloat16 if cfg.get("bf16", False) else torch.float16):
+        with autocast('cuda', dtype=torch.bfloat16 if cfg.get("bf16", False) else torch.float16):
             logits = model(batch)
             loss = criterion(logits, batch["label"])
 
@@ -301,7 +301,7 @@ def main():
     scheduler = build_scheduler(optimizer, cfg, len(train_loader))
 
     # AMP
-    scaler = GradScaler()
+    scaler = GradScaler('cuda')
 
     # Resume
     start_epoch = 0
