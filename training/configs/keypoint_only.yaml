@@ -2,7 +2,7 @@
 # Target: ~60-65% accuracy
 
 # Data
-data_root: /path/to/slovo  # CHANGE THIS
+data_root: ../dataset  # CHANGE THIS
 mode: keypoints
 num_frames_kp: 128
 batch_size: 64

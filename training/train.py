@@ -197,7 +197,7 @@ def evaluate(model, loader, criterion, cfg):
 def build_optimizer(model, cfg):
     """Build optimizer with differential learning rates."""
     mode = cfg.get("mode", "both")
-    base_lr = cfg.get("lr", 1e-4)
+    base_lr = float(cfg.get("lr", 1e-4))
 
     if mode == "both":
         param_groups = [

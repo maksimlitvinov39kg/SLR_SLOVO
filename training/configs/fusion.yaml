@@ -2,7 +2,7 @@
 # Target: >82% accuracy (beat SOTA)
 
 # Data
-data_root: /path/to/slovo  # CHANGE THIS
+data_root: ../dataset  # CHANGE THIS
 mode: both
 num_frames_rgb: 32
 num_frames_kp: 128

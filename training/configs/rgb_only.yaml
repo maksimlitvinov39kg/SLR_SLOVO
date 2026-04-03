@@ -2,7 +2,7 @@
 # Target: ~78-80% accuracy (reproduce Krivov et al. baseline)
 
 # Data
-data_root: /path/to/slovo  # CHANGE THIS
+data_root: ../dataset  # CHANGE THIS
 mode: rgb
 num_frames_rgb: 32
 rgb_size: 224

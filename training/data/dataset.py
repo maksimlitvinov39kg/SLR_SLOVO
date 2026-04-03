@@ -56,7 +56,11 @@ class SLOVODataset(Dataset):
         # Load annotations
         ann_path = self.data_root / "annotations.csv"
         ann = pd.read_csv(ann_path, sep="\t")
-        self.df = ann[ann["split"] == split].reset_index(drop=True)
+        is_train = ann["train"].astype(str).str.strip().str.lower() == "true"
+        if split == "train":
+            self.df = ann[is_train].reset_index(drop=True)
+        else:
+            self.df = ann[~is_train].reset_index(drop=True)
 
         # Build label map: text -> int
         if label_map is not None:
@@ -69,7 +73,10 @@ class SLOVODataset(Dataset):
 
         # Paths
         self.video_dir = self.data_root / "slovo" / split
-        self.kp_dir = self.data_root / "keypoints" / split
+        # Keypoints are flat (no train/test subdirs) — try both layouts
+        kp_split_dir = self.data_root / "keypoints" / split
+        kp_flat_dir = self.data_root / "keypoints"
+        self.kp_dir = kp_split_dir if kp_split_dir.exists() else kp_flat_dir
 
         # Verify data exists
         if mode in ("rgb", "both"):

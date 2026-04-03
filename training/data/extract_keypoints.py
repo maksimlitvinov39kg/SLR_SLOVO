@@ -209,6 +209,48 @@ def batch_extract_keypoints(
     print(f"Done. Saved keypoints to {output_dir}")
 
 
+def batch_extract_keypoints_shard(
+    video_dir: str,
+    output_dir: str,
+    max_frames: int = 256,
+    gpu_id: int = 0,
+    num_shards: int = 1,
+    shard_id: int = 0,
+    save_full: bool = False,
+):
+    """Extract keypoints for a shard of videos on a specific GPU."""
+    video_dir = Path(video_dir)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    video_files = sorted(video_dir.rglob("*.mp4"))
+
+    # Split into shards
+    shard_files = video_files[shard_id::num_shards]
+    print(f"[GPU {gpu_id}, shard {shard_id}/{num_shards}] "
+          f"Processing {len(shard_files)}/{len(video_files)} videos")
+
+    device = f"cuda:{gpu_id}"
+
+    # Set CUDA device for onnxruntime
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+
+    wholebody = _init_wholebody(device="cuda")
+
+    n_kp = 133 if save_full else N_SLR_LANDMARKS
+    for vf in tqdm(shard_files, desc=f"GPU {gpu_id}"):
+        out_path = output_dir / f"{vf.stem}.npz"
+        if out_path.exists():
+            continue
+        result = extract_keypoints_from_video(
+            str(vf), wholebody, max_frames=max_frames, save_full=save_full
+        )
+        np.savez_compressed(str(out_path), keypoints=result["keypoints"], scores=result["scores"])
+
+    print(f"[GPU {gpu_id}] Done.")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Extract RTMW keypoints from SLOVO videos")
@@ -216,12 +258,25 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", required=True, help="Where to save .npz keypoints")
     parser.add_argument("--max_frames", type=int, default=256)
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"])
-    parser.add_argument("--save_full", action="store_true", help="Save all 133 keypoints (default: SLR subset of 78)")
+    parser.add_argument("--save_full", action="store_true")
+    parser.add_argument("--gpu_id", type=int, default=0, help="GPU index")
+    parser.add_argument("--num_shards", type=int, default=1, help="Total number of parallel workers")
+    parser.add_argument("--shard_id", type=int, default=0, help="This worker's shard index")
     args = parser.parse_args()
 
-    batch_extract_keypoints(
-        args.video_dir, args.output_dir,
-        max_frames=args.max_frames,
-        device=args.device,
-        save_full=args.save_full,
-    )
+    if args.num_shards > 1:
+        batch_extract_keypoints_shard(
+            args.video_dir, args.output_dir,
+            max_frames=args.max_frames,
+            gpu_id=args.gpu_id,
+            num_shards=args.num_shards,
+            shard_id=args.shard_id,
+            save_full=args.save_full,
+        )
+    else:
+        batch_extract_keypoints(
+            args.video_dir, args.output_dir,
+            max_frames=args.max_frames,
+            device=args.device,
+            save_full=args.save_full,
+        )
