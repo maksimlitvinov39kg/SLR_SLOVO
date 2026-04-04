@@ -88,8 +88,7 @@ class DualStreamModel(nn.Module):
                 backbone=rgb_backbone,
                 pretrained=rgb_pretrained,
                 freeze_stages=rgb_freeze_stages,
-                dropout=0.0,  # Krivov uses dropout=0.0
-                num_frames=num_frames_rgb,
+                dropout=0.0,
                 drop_path_rate=drop_path_rate,
             )
             rgb_dim = self.rgb_branch.get_feature_dim()
