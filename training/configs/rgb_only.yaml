@@ -1,42 +1,55 @@
-# Phase 1: RGB-only baseline with MViTv2-S
-# Target: ~78-80% accuracy (reproduce Krivov et al. baseline)
+# Phase 1: RGB-only with Krivov et al. 2024 training strategies
+# Target: ~78-80% accuracy
 
 # Data
 data_root: ../dataset
 mode: rgb
-num_frames_rgb: 16    # MViTv2-S pretrained expects exactly 16 frames
+num_frames_rgb: 32
+frame_interval: 2
 rgb_size: 224
-batch_size: 8
+batch_size: 6
 num_workers: 8
+
+# Augmentations (Krivov pipeline)
+video_aug: true
+image_aug: true
 
 # Model
 rgb_backbone: mvit_v2_s
 rgb_pretrained: true
-rgb_freeze_stages: 0  # fine-tune everything
+rgb_freeze_stages: 0
+drop_path_rate: 0.2
+use_regression_head: true
 
-# Training
-epochs: 50
-lr: 0.0001
+# Training (Krivov recipe)
+epochs: 100
+lr: 0.0016
 weight_decay: 0.05
-max_grad_norm: 1.0
-gradient_accumulation: 4   # effective batch = 8 * 4 = 32
-mixup_alpha: 0.4
-label_smoothing: 0.05
-focal_alpha: 1.0
-focal_gamma: 2.0
+max_grad_norm: 5.0
+gradient_accumulation: 4
+warmup_epochs: 20
 
-# Scheduler
-scheduler: cosine_warm_restarts
-cosine_T0: 10
-cosine_T_mult: 2
+# Augmentation params
+mixup_alpha: 0.8
+cutmix_alpha: 1.0
+label_smoothing: 0.1
+
+# Loss
+huber_loss_weight: 5.0
+
+# Classifier
+classifier_dropout: 0.0
 
 # AMP
-bf16: true   # H100 supports bf16 natively
+bf16: true
 
 # Logging
-log_every: 50
-save_every: 5
-patience: 15
+log_every: 100
+save_every: 3
+
+# Early stopping (Krivov: patience=7, min_delta=0.003)
+patience: 7
+min_delta: 0.003
 
 # Output
-output_dir: checkpoints/rgb_only
+output_dir: checkpoints/rgb_krivov
