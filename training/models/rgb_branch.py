@@ -1,11 +1,35 @@
 """
 RGB Branch: MViTv2-S pretrained on Kinetics-400.
-MViTv2 uses relative positional encoding, so it handles
-different temporal sizes (16, 32, etc.) natively.
+Patched to support arbitrary temporal sizes (16, 32, etc.)
+by computing thw from actual conv_proj output instead of hardcoded config.
 """
 
 import torch
 import torch.nn as nn
+from torchvision.models.video.mvit import _unsqueeze
+
+
+def _mvit_forward_flex(self, x: torch.Tensor) -> torch.Tensor:
+    """
+    Patched MViT forward that computes thw dynamically from conv_proj output.
+    Original torchvision hardcodes thw = (temporal_size, spatial_size)
+    which breaks for non-standard frame counts.
+    """
+    x = _unsqueeze(x, 5, 2)[0]
+    x = self.conv_proj(x)
+
+    # Compute thw from ACTUAL conv output, not hardcoded config
+    thw = (x.shape[2], x.shape[3], x.shape[4])
+
+    x = x.flatten(2).transpose(1, 2)
+    x = self.pos_encoding(x)
+
+    for block in self.blocks:
+        x, thw = block(x, thw)
+    x = self.norm(x)
+    x = x[:, 0]
+    x = self.head(x)
+    return x
 
 
 class RGBBranch(nn.Module):
@@ -40,16 +64,14 @@ class RGBBranch(nn.Module):
         model = mvit_v2_s(weights=weights)
 
         self.feature_dim = 768
-
-        # Replace classification head with identity
         model.head = nn.Identity()
 
-        # Set drop path rate if specified
         if drop_path_rate > 0:
             self._set_drop_path(model, drop_path_rate)
 
-        # MViTv2 uses relative positional encoding (not absolute),
-        # so it handles different temporal sizes natively — no interpolation needed
+        # Monkey-patch forward to support arbitrary temporal sizes
+        import types
+        model.forward = types.MethodType(_mvit_forward_flex, model)
 
         self.model = model
 
@@ -74,14 +96,12 @@ class RGBBranch(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def _set_drop_path(self, model, rate):
-        """Set stochastic depth rate across all blocks."""
         blocks = [b for b in model.blocks if hasattr(b, 'stochastic_depth')]
         n = len(blocks)
         for i, block in enumerate(blocks):
             block.stochastic_depth.p = rate * i / max(n - 1, 1)
 
     def _freeze_stages(self, n_stages):
-        """Freeze first n stages of the backbone."""
         ct = 0
         for name, param in self.model.named_parameters():
             if ct < n_stages:
@@ -91,12 +111,6 @@ class RGBBranch(nn.Module):
                     ct += 1
 
     def forward(self, x):
-        """
-        Args:
-            x: (B, C, T, H, W) video tensor
-        Returns:
-            features: (B, feature_dim)
-        """
         features = self.model(x)
         return self.dropout(features)
 

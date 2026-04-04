@@ -4,10 +4,10 @@
 # Data
 data_root: ../dataset
 mode: rgb
-# torchvision MViTv2-S requires exactly 16 frames
-# Use interval=4 to cover same temporal extent as Krivov's 32×2
-num_frames_rgb: 16
-frame_interval: 4
+# 32 frames with interval=2 (same as Krivov et al. 2024)
+# Patched MViT forward computes thw dynamically
+num_frames_rgb: 32
+frame_interval: 2
 rgb_size: 224
 batch_size: 6
 num_workers: 8
