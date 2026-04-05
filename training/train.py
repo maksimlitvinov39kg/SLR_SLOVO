@@ -390,7 +390,7 @@ def main():
         writer.add_scalar("lr", optimizer.param_groups[0]["lr"], epoch + 1)
 
         # Save best (with min_delta like Krivov)
-        is_best = val_acc > best_acc + min_delta * 100  # min_delta is fraction, acc is percentage
+        is_best = val_acc > best_acc + min_delta * 100
         if is_best:
             best_acc = val_acc
             no_improve = 0
@@ -404,7 +404,11 @@ def main():
             }, output_dir / "best.pt")
             print(f"  -> New best: {best_acc:.2f}%")
         else:
-            no_improve += 1
+            # Only count "no improvement" AFTER warmup completes.
+            # During warmup LR is tiny so model can't improve meaningfully.
+            warmup_epochs = cfg.get("warmup_epochs", 20)
+            if epoch + 1 > warmup_epochs:
+                no_improve += 1
 
         if (epoch + 1) % cfg.get("save_every", 3) == 0:
             torch.save({

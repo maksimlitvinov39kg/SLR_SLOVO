@@ -24,12 +24,12 @@ drop_path_rate: 0.2
 use_regression_head: true
 
 # Training (Krivov recipe)
-epochs: 100
+epochs: 60
 lr: 0.0016
 weight_decay: 0.05
 max_grad_norm: 5.0
 gradient_accumulation: 4
-warmup_epochs: 20
+warmup_epochs: 5
 
 # Augmentation params
 mixup_alpha: 0.8
@@ -49,8 +49,8 @@ bf16: true
 log_every: 100
 save_every: 3
 
-# Early stopping (Krivov: patience=7, min_delta=0.003)
-patience: 7
+# Early stopping (counted only AFTER warmup)
+patience: 12
 min_delta: 0.003
 
 # Output
